@@ -4,10 +4,10 @@ from repositories.appointment_repository import AppointmentRepository
 class InMemoryAppointmentRepository(AppointmentRepository):
 
     def __init__(self) -> None:
-        self.appointments: list[Appointment] = []
+        self._appointments: list[Appointment] = []
 
     def add(self, appointment: Appointment) -> None:
-        self.appointments.append(appointment)
+        self._appointments.append(appointment)
 
     def get_all(self) -> list[Appointment]:
-        return list(self.appointments)
+        return list(self._appointments)
