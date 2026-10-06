@@ -51,28 +51,12 @@ class Practitioner:
     def add_appointment(self, appointment) -> None:
         self._appointments.append(appointment)
 
-
-# -----------------------------
-# NEW ENUM + EXCEPTION
-# -----------------------------
-
 class AppointmentStatus(Enum):
     BOOKED = "Booked"
     CANCELLED = "Cancelled"
 
-
-class InvalidStatusTransitionError(Exception):
-    """Raised when an illegal appointment status change is attempted."""
-    pass
-
-
-# -----------------------------
-# APPOINTMENT CLASS (UML‑APPROVED)
-# -----------------------------
-
 class Appointment:
     def __init__(self, patient: Patient, practitioner: Practitioner, appointment_time: str) -> None:
-        # FR‑04: Validate required fields
         if not patient:
             raise ValueError("Patient is required")
         if not practitioner:
@@ -80,7 +64,6 @@ class Appointment:
         if not appointment_time:
             raise ValueError("Appointment time is required")
 
-        # FR‑05 / NFR‑01: Practitioner must not be busy
         if practitioner.is_busy_at(appointment_time):
             raise ValueError(f"Practitioner is busy at {appointment_time}")
 
@@ -89,43 +72,19 @@ class Appointment:
         self._appointment_time = appointment_time
         self._status = AppointmentStatus.BOOKED  # Rule: new appointment starts BOOKED
 
-        # Register with practitioner (rule #3)
         practitioner.add_appointment(self)
 
-    # UML operation
-    def is_complete(self) -> bool:
-        # Decision: UML says "is_complete() -> bool" but does not define meaning.
-        # I interpret "complete" as "all required fields exist", which matches your comment.
-        return (
-            self._patient is not None and
-            self._practitioner is not None and
-            bool(self._appointment_time)
-        )
-
-    # UML operation
     def cancel(self) -> None:
-        # FR‑08 / FR‑09 / US‑03: Only BOOKED → CANCELLED allowed
-        if self._status == AppointmentStatus.CANCELLED:
-            raise InvalidStatusTransitionError("Appointment is already cancelled")
-
         self._status = AppointmentStatus.CANCELLED
 
-    # UML operation
     def is_active(self) -> bool:
         return self._status != AppointmentStatus.CANCELLED
 
-    # UML operation
     def get_appointment_time(self) -> str:
         return self._appointment_time
 
-    # Extra method required by business rule #7
     def get_status(self) -> AppointmentStatus:
         return self._status
-
-
-# -----------------------------
-# SIMPLE MAIN FOR BOOKING + CANCELLING
-# -----------------------------
 
 if __name__ == "__main__":
     print("=== SmartCare Demo ===")
@@ -141,29 +100,66 @@ if __name__ == "__main__":
     practitioners_specialty = input("Enter practitioner's specialty: ")
     practitioner = Practitioner(practitioners_name, practitioners_id, practitioners_specialty)
 
+    appointments = []
+
     while True:
-        user_input = input("book, cancel or quit?")
+        user_input = input("book, view, cancel or quit?")
         if user_input == "book":
             # Book appointment
             time = input("Enter appointment time (e.g., 2024-07-20 10:00 AM): ")
 
             try:
                 appointment = Appointment(patient, practitioner, time)
+                appointments.append(appointment)
                 print("Appointment booked successfully!")
                 print("Status:", appointment.get_status().value)
             except Exception as e:
                 print("Failed to book appointment:", e)
-                exit()
+        elif user_input == "view":
+            active_appointments = [
+                appointment for appointment in appointments if appointment.is_active()
+            ]
+
+            if not active_appointments:
+                print("You have no appointments!")
+                continue
+
+            print("Your appointments:")
+
+            for i, appointment in enumerate(active_appointments, start=1):
+                print(f"{i}. {appointment.get_appointment_time()}" f" with {practitioner.get_name()}")
+
+
         elif user_input == "cancel":
-            # Optionally cancel
-            do_cancel = input("Cancel this appointment? (yes/no): ").strip().lower()
-            if do_cancel == "yes":
-                try:
-                    appointment.cancel()
-                    print("Appointment cancelled.")
-                    print("Status:", appointment.get_status().value)
-                except InvalidStatusTransitionError as e:
-                    print("Error:", e)
+            active_appointments = [
+                appointment for appointment in appointments if appointment.is_active()
+            ]
+
+            if not active_appointments:
+                print("You have no appointments to cancel!")
+                continue
+
+            print("Your appointments:")
+
+            for i, appointment in enumerate(active_appointments, start=1):
+                print(f"{i}. {appointment.get_appointment_time()}" f" with {appointment._practitioner.get_name()}")
+
+            try:
+                choice = int(input("Select appointment to cancel: "))
+
+                if choice < 1 or choice > len(active_appointments):
+                    print("Invalid choice. Please try again.")
+                    continue
+
+                appointment_to_cancel = active_appointments[choice - 1]
+
+                appointment_to_cancel.cancel()
+
+                print("Appointment cancelled.")
+                print("Status:", appointment_to_cancel.get_status().value)
+
+            except ValueError:
+                print("Please enter a valid number")
         elif user_input == "quit":
             break
         else:
